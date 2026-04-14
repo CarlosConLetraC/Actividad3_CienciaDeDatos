@@ -135,7 +135,7 @@ export.ejemplo_prediccion = {
 	output_runs = modelo:predecir_real({20})
 }
 
-local dataset_final = File.new("data/actividad3.json", "wr", true)
+local dataset_final = File.new("data/actividad3.json", "w", true)
 dataset_final:clear()
 dataset_final:write(json.encode(export))
 
