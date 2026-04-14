@@ -1,0 +1,9 @@
+*.class
+*.log
+data/*.csv
+data/stats.json
+data/actividad*
+entorno/
+build/
+plots/
+.vscode/
