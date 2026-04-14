@@ -21,7 +21,7 @@ fi
 echo "[INFO] OS: $OS ($CODENAME)"
 
 java --version > /dev/null 2>&1 && JAVA_INSTALADO=0 || JAVA_INSTALADO=1
-#mongod --version > /dev/null 2>&1 && MONGOD_INSTALADO=0 || MONGOD_INSTALADO=1
+mongod --version > /dev/null 2>&1 && MONGOD_INSTALADO=0 || MONGOD_INSTALADO=1
 luarocks --version > /dev/null 2>&1 && LUAROCKS_INSTALADO=0 || LUAROCKS_INSTALADO=1
 
 dependencies=(
@@ -81,7 +81,7 @@ if [ ! -f "$BASE_PATH/import/Linux/ssh.so" ]; then
 	echo "[INFO] Compilando lua-ssh. . ."
 
 	cd /tmp
-	rm -rf lua-ssh
+	rm -rf /tmp/lua-ssh
 	git clone https://github.com/esno/lua-ssh.git
 	cd lua-ssh/src
 
@@ -194,19 +194,6 @@ echo "[INFO] Actualizando herramientas base..."
 "$VENV_PATH/bin/python" -m pip install --upgrade pip setuptools wheel
 
 echo "[INFO] Instalando dependencias Python..."
-"$VENV_PATH/bin/python" -m pip install \
-	pymongo matplotlib pandas numpy scikit-learn \
-	umap-learn plotly dash seaborn
-
-echo "[INFO] Instalacion completada correctamente."
-	echo "[INFO] Creando entorno virtual. . ."
-	python3 -m venv "$VENV_PATH"
-
-	echo "[INFO] Instalando pip en el entorno. . ."
-	"$VENV_PATH/bin/python" -m ensurepip --upgrade
-fi
-
-"$VENV_PATH/bin/python" -m pip install --upgrade pip setuptools wheel
-"$VENV_PATH/bin/pip" install pymongo matplotlib pandas numpy scikit-learn umap-learn plotly dash seaborn
+"$VENV_PATH/bin/python" -m pip install pymongo matplotlib pandas numpy scikit-learn umap-learn plotly dash seaborn
 
 echo "[INFO] Instalacion completada correctamente."
