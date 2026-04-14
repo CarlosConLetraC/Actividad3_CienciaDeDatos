@@ -194,6 +194,6 @@ echo "[INFO] Actualizando herramientas base..."
 "$VENV_PATH/bin/python" -m pip install --upgrade pip setuptools wheel
 
 echo "[INFO] Instalando dependencias Python..."
-"$VENV_PATH/bin/python" -m pip install pymongo matplotlib pandas numpy scikit-learn umap-learn plotly dash seaborn
+"$VENV_PATH/bin/python" -m pip install matplotlib numpy scikit-learn umap-learn plotly dash
 
 echo "[INFO] Instalacion completada correctamente."
