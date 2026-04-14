@@ -1,3 +1,4 @@
+ESTE PROYECTO ESTA BASADO EN OTRO PROYECTO DEL MISMO AUTOR: `https://github.com/CarlosConLetraC/Moduler/`. A CONTINUACIÓN ENCONTRARÁ EL MANUAL DEL PROYECTO ORIGINAL.
 # Moduler
 
 Moduler es un **motor de ejecución multitenencia de scripts LuaJIT**, diseñado para ejecutar múltiples programas aislados en paralelo, cada uno con su propio entorno (lua-env).
