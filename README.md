@@ -60,6 +60,6 @@ chmod +x cmd initconsole runclient *.sh
 ```
 
 ## Ejecutar
-```
+```bash
 ./run.sh
 ```
