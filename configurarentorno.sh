@@ -1,7 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[INFO] Iniciando instalacion. . ."
+function prettyprint() {
+    local level=$1
+    shift
+    local packed=("$@")
+
+    case $level in
+        0)
+            printf "\e[0;36m[INFO]:\e[0m %s\n" "${packed[*]}"
+        ;;
+        1)
+            printf "\e[0;33m[WARN]:\e[0m %s\n" "${packed[*]}"
+        ;;
+        2|*)
+            printf "\e[0;31m[FAIL]:\e[0m %s\n" "${packed[*]}"
+        ;;
+    esac
+}
+
+
+prettyprint 0 "Iniciando instalacion. . ."
 
 export MAKEFLAGS="-j$(nproc || echo 2)"
 export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
@@ -14,11 +33,11 @@ OS=$ID
 CODENAME="${VERSION_CODENAME:-}"
 
 if [ -z "$CODENAME" ]; then
-	echo "[ERROR] VERSION_CODENAME vacio."
+	prettyprint 2 " VERSION_CODENAME vacio."
 	exit 1
 fi
 
-echo "[INFO] OS: $OS ($CODENAME)"
+prettyprint 0 "OS: $OS ($CODENAME)"
 
 java --version > /dev/null 2>&1 && JAVA_INSTALADO=0 || JAVA_INSTALADO=1
 mongod --version > /dev/null 2>&1 && MONGOD_INSTALADO=0 || MONGOD_INSTALADO=1
@@ -43,16 +62,16 @@ if [ "$OS" = "ubuntu" ]; then
 elif [ "$OS" = "debian" ]; then
 	dependencies+=(libfreetype-dev)
 else
-	echo "[ERROR] Distribucion no soportada: $OS"
+	prettyprint 2 "Distribucion no soportada: $OS"
 	exit 1
 fi
 
-echo "[INFO] Instalando dependencias. . ."
+prettyprint 0 "Instalando dependencias. . ."
 sudo apt-get update
 sudo apt-get install -y "${dependencies[@]}"
 
 if [ "$LUAROCKS_INSTALADO" -ne 0 ]; then
-	echo "[INFO] Instalando LuaRocks $LUAROCKS_VERSION. . ."
+	prettyprint 0 "Instalando LuaRocks $LUAROCKS_VERSION. . ."
 
 	cd /tmp || exit 1
 	rm -rf "luarocks-$LUAROCKS_VERSION"
@@ -73,12 +92,12 @@ if [ "$LUAROCKS_INSTALADO" -ne 0 ]; then
 	rm -rf "/tmp/luarocks-$LUAROCKS_VERSION"
 fi
 
-echo "[INFO] Instalando paquetes Lua. . ."
+prettyprint 0 "Instalando paquetes Lua. . ."
 sudo luarocks install luasocket || true
 sudo luarocks install luasec || true
 
 if [ ! -f "$BASE_PATH/import/Linux/ssh.so" ]; then
-	echo "[INFO] Compilando lua-ssh. . ."
+	prettyprint 0 "Compilando lua-ssh. . ."
 
 	cd /tmp
 	rm -rf /tmp/lua-ssh
@@ -95,7 +114,7 @@ if [ ! -f "$BASE_PATH/import/Linux/ssh.so" ]; then
 fi
 
 if [ "$JAVA_INSTALADO" -ne 0 ]; then
-	echo "[INFO] Instalando JDK 25. . ."
+	prettyprint 0 "Instalando JDK 25. . ."
 	cd /tmp
 
 	JDK_DEB="jdk-25_linux-x64_bin.deb"
@@ -109,7 +128,7 @@ if [ "$JAVA_INSTALADO" -ne 0 ]; then
 	if [ -n "$JAVA_PATH" ]; then
 		sudo update-alternatives --set java "$JAVA_PATH"
 	else
-		echo "[WARN] No se pudo configurar JDK 25 automáticamente"
+		prettyprint 1 "No se pudo configurar JDK 25 automaticamente."
 	fi
 fi
 
@@ -147,7 +166,7 @@ java -version || true
 #
 #	sudo rm -f "$KEYRING"
 #
-#	echo "[INFO] Descargando clave GPG MongoDB. . ."
+#	prettyprint 0 "Descargando clave GPG MongoDB. . ."
 #	curl -fsSL "https://pgp.mongodb.com/server-${MONGODB_GPG_VERSION}.asc" | \
 #		sudo gpg --dearmor -o "$KEYRING"
 #
@@ -161,12 +180,12 @@ java -version || true
 #		REPO_LINE="deb [ signed-by=$KEYRING arch=amd64 ] https://repo.mongodb.org/apt/ubuntu ${MONGO_DIST}/mongodb-org/${MONGODB_REPO_VERSION} multiverse"
 #	fi
 #
-#	echo "[INFO] Agregando repositorio MongoDB. . ."
+#	prettyprint 0 "Agregando repositorio MongoDB. . ."
 #	echo "$REPO_LINE" | sudo tee "$LIST_FILE" > /dev/null
 #
 #	sudo apt-get update
 #
-#	echo "[INFO] Instalando paquetes MongoDB. . ."
+#	prettyprint 0 "Instalando paquetes MongoDB. . ."
 #	sudo apt-get install -y mongodb-org mongodb-mongosh
 #
 #	if command -v systemctl &>/dev/null; then
@@ -175,25 +194,30 @@ java -version || true
 #		sudo systemctl restart mongod
 #	fi
 #
-#	echo "[INFO] Version instalada:"
+#	prettyprint 0 "Version instalada:"
 #	mongod --version | head -n1
 #fi
 
-echo "[INFO] Configurando entorno Python. . ."
+prettyprint 0 "Configurando entorno Python. . ."
 VENV_PATH="$BASE_PATH/entorno"
 
 if [ ! -d "$VENV_PATH" ]; then
-	echo "[INFO] Creando entorno virtual..."
+	prettyprint 0 "Creando entorno virtual..."
 	python3 -m venv "$VENV_PATH"
 fi
 
-echo "[INFO] Asegurando que pip exista..."
+prettyprint 0 "Asegurando que pip exista..."
 "$VENV_PATH/bin/python" -m ensurepip --upgrade || true
 
-echo "[INFO] Actualizando herramientas base..."
+prettyprint 0 "Actualizando herramientas base..."
 "$VENV_PATH/bin/python" -m pip install --upgrade pip setuptools wheel
 
+<<<<<<< HEAD
 echo "[INFO] Instalando dependencias Python..."
 "$VENV_PATH/bin/python" -m pip install matplotlib numpy scikit-learn umap-learn plotly dash
+=======
+prettyprint 0 "Instalando dependencias Python..."
+"$VENV_PATH/bin/python" -m pip install pymongo matplotlib pandas numpy scikit-learn umap-learn plotly dash seaborn
+>>>>>>> 14c2145 (Cambios)
 
-echo "[INFO] Instalacion completada correctamente."
+prettyprint 0 "Instalacion completada correctamente."

@@ -7,3 +7,8 @@ entorno/
 build/
 plots/
 .vscode/
+.wget-hsts
+.python_history
+.sudo_as_admin_successful
+.bash_history
+.cache
