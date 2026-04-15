@@ -212,12 +212,7 @@ prettyprint 0 "Asegurando que pip exista..."
 prettyprint 0 "Actualizando herramientas base..."
 "$VENV_PATH/bin/python" -m pip install --upgrade pip setuptools wheel
 
-<<<<<<< HEAD
-echo "[INFO] Instalando dependencias Python..."
-"$VENV_PATH/bin/python" -m pip install matplotlib numpy scikit-learn umap-learn plotly dash
-=======
 prettyprint 0 "Instalando dependencias Python..."
 "$VENV_PATH/bin/python" -m pip install pymongo matplotlib pandas numpy scikit-learn umap-learn plotly dash seaborn
->>>>>>> 14c2145 (Cambios)
 
 prettyprint 0 "Instalacion completada correctamente."
