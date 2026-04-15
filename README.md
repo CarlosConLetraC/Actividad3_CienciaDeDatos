@@ -44,9 +44,9 @@ Cada programa Lua se ejecuta en un entorno aislado con:
 ## Instalación
 
 ```bash
-git clone --recursive https://github.com/CarlosConLetraC/Moduler.git
-cd Moduler
-chmod +x *.sh
+git clone --recursive https://github.com/CarlosConLetraC/Actividad3_CienciaDeDatos.git
+cd Actividad3_CienciaDeDatos
+chmod +x cmd initconsole runclient *.sh
 ```
 
 ## Configurar
