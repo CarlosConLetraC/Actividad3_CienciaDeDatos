@@ -623,7 +623,7 @@ function Math.gposm(ti, mps)
 	return ti
 end
 
--- regresion linea simple y multiple.
+-- regresion lineal simple y multiple.
 -- TODO: hacer que el modelo ya tenga datos estandarizados (std deviation). . .
 function Math.regresion_lineal(data)
 	local newRM = {}
