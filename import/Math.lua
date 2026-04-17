@@ -608,15 +608,6 @@ function Math.gposm(ti, mps)
 	mps:foreach(function(ps, t)
 		t:foreach(function(_, v)
 			blund(posms[ps], string_format("Invalid gposm mode '%s'.", ps))(ti, v)
-			--if ps == "q" then
-			--	Math.posm(ti, v, nil, nil)
-			--end
-			--if ps == "d" then
-			--	Math.posm(ti, nil, v, nil)
-			--end
-			--if ps == "p" then
-			--	Math.posm(ti, nil, nil, v)
-			--end
 		end)
 	end)
 
@@ -625,85 +616,98 @@ end
 
 -- regresion lineal simple y multiple.
 -- TODO: hacer que el modelo ya tenga datos estandarizados (std deviation). . .
-function Math.regresion_lineal(data)
+function Math.regresion_lineal(data, config)
 	local newRM = {}
+	newRM.data = data
+	newRM.features = config.features
+	newRM.target = config.target
 
-	function newRM:normalizar(num_features)
-		local n = #data
+	--newRM.x_mean = {}
+	newRM.y_mean = 0
+
+	function newRM:normalizar()
+		local n = #self.data
+		local k = #self.features
 
 		self.x_mean = {}
 		self.y_mean = 0
 
-		-- calcular medias
-		for j = 1, num_features, 1 do
+		-- init
+		for j = 1, k do
 			self.x_mean[j] = 0
 		end
 
+		-- sum
 		for i = 1, n do
-			for j = 1, num_features, 1 do
-				self.x_mean[j] = self.x_mean[j] + data[i][j]
+			local row = self.data[i]
+
+			for j = 1, k do
+				local v = row[self.features[j]]
+				assert(v ~= nil, "Missing feature: " .. self.features[j])
+				self.x_mean[j] = self.x_mean[j] + v
 			end
-			self.y_mean = self.y_mean + data[i][num_features + 1]
+
+			self.y_mean = self.y_mean + row[self.target]
 		end
 
-		for j = 1, num_features, 1 do
+		-- mean.
+		for j = 1, k, 1 do
 			self.x_mean[j] = self.x_mean[j] / n
 		end
+
 		self.y_mean = self.y_mean / n
 
-		-- normalizar dataset
-		local norm = {}
+		-- normalize dataset.
+		self.norm = {}
 
 		for i = 1, n, 1 do
-			norm[i] = {}
+			local row = self.data[i]
+			self.norm[i] = {}
 
-			for j = 1, num_features, 1 do
-				norm[i][j] = data[i][j] - self.x_mean[j]
+			for j = 1, k do
+				local v = row[self.features[j]]
+				self.norm[i][j] = v - self.x_mean[j]
 			end
 
-			norm[i][num_features + 1] = data[i][num_features + 1] - self.y_mean
+			self.norm[i][k + 1] = row[self.target] - self.y_mean
 		end
 
-		self.norm = norm
-		return norm
+		return self.norm
 	end
 
-	function newRM:entrenar(num_features, learning_rate, epochs)
-		local n = assert(#self.norm, "regresion no entrenado.")
-		
-		-- Inicializar coeficientes (b0 incluido). . .
+	function newRM:entrenar(lr, epochs)
+		local n = #self.norm
+		local k = #self.features
+
 		local b = {}
-		for j = 1, num_features + 1, 1 do
-			b[j] = 0
-		end
+		for i = 1, k + 1, 1 do b[i] = 0 end
 
 		for e = 1, epochs, 1 do
 			local grad = {}
-			for j = 1, num_features + 1, 1 do
-				grad[j] = 0
+
+			for i = 1, k + 1, 1 do
+				grad[i] = 0
 			end
 
 			for i = 1, n, 1 do
-				local y_real = self.norm[i][num_features + 1]
+				local row = self.norm[i]
+				local y = row[k + 1] -- 'y' esta en ultima posicion, pero ahora es seguro porque lo definimos asi en 'normalizar()'.
+				local y_pred = b[1]
 
-				-- prediccion.
-				local y_pred = b[1] -- b0
-				for j = 1, num_features, 1 do
-					y_pred = y_pred + b[j+1] * self.norm[i][j]
+				for j = 1, k, 1 do
+					y_pred = y_pred + b[j + 1] * row[j]
 				end
 
-				local err = y_pred - y_real
+				local err = y_pred - y
+				grad[1] = grad[1] + err
 
-				-- gradientes.
-				grad[1] = grad[1] + err -- b0
-				for j = 1, num_features, 1 do
-					grad[j+1] = grad[j+1] + err * self.norm[i][j]
+				for j = 1, k, 1 do
+					grad[j + 1] = grad[j + 1] + err * row[j]
 				end
 			end
 
-			-- actualizar coeficientes.
-			for j = 1, num_features + 1, 1 do
-				b[j] = b[j] - learning_rate * (grad[j] / n)
+			for j = 1, k + 1, 1 do
+				b[j] = b[j] - lr * (grad[j] / n)
 			end
 		end
 
@@ -711,33 +715,28 @@ function Math.regresion_lineal(data)
 		return b
 	end
 
-	function newRM:predecir(x)
-		assert(self.b, "regresion no entrenada.")
-		local y = self.b[1] -- b0
-		for j = 1, #x, 1 do
-			y = y + self.b[j+1] * x[j]
+	function newRM:predecir(row)
+		local k = #self.features
+		local x = {}
+
+		for i = 1, k, 1 do
+			local v = row[self.features[i]]
+			assert(v ~= nil, "feature no encontrado: " .. self.features[i])
+			x[i] = v - self.x_mean[i]
 		end
-		return y
-	end
-
-	function newRM:predecir_real(x)
-		assert(self.b and self.x_mean and self.y_mean, "regresion no entrenado.")
-
-		local x_norm = {}
-
-		for j = 1, #x, 1 do
-			x_norm[j] = x[j] - self.x_mean[j]
+		local y = self.b[1]
+		for i = 1, k, 1 do
+			y = y + self.b[i + 1] * x[i]
 		end
 
-		local y_norm = self:predecir(x_norm)
-		return y_norm + self.y_mean
+		return y + self.y_mean
 	end
 
+	-- coeficiente de correlacion lineal de Pearson.
 	function newRM:pearson(ix, iy)
-		assert(self.norm, "no normalizado")
+		assert(self.norm, "regresion no normalizada.")
 
 		local n = #self.norm
-
 		local sum_x, sum_y = 0, 0
 		local sum_x2, sum_y2 = 0, 0
 		local sum_xy = 0
@@ -745,21 +744,52 @@ function Math.regresion_lineal(data)
 		for i = 1, n, 1 do
 			local x = self.norm[i][ix]
 			local y = self.norm[i][iy]
-
 			sum_x = sum_x + x
 			sum_y = sum_y + y
-
 			sum_x2 = sum_x2 + x * x
 			sum_y2 = sum_y2 + y * y
 			sum_xy = sum_xy + x * y
 		end
 
 		local num = n * sum_xy - sum_x * sum_y
-		local den = math.sqrt((n * sum_x2 - sum_x^2) * (n * sum_y2 - sum_y^2))
+		local den = math.sqrt((n * sum_x2 - sum_x*sum_x) * (n * sum_y2 - sum_y*sum_y))
 
 		if den == 0 then return 0 end
 		return num / den
 	end
+
+	-- coeficiente de determinacion.
+	function newRM:determinacion()
+		local ss_res = 0
+		local ss_tot = 0
+		local n = #self.data
+
+		for i = 1, n, 1 do
+			local row = self.data[i]
+			local y = row[self.target]
+			local y_pred = self:predecir(row)
+			ss_res = ss_res + (y - y_pred)^2
+			ss_tot = ss_tot + (y - self.y_mean)^2
+		end
+
+		return 1 - (ss_res / ss_tot)
+	end
+
+	function newRM:mse()
+		local n = #self.data
+		local err_sum = 0
+
+		for i = 1, n, 1 do
+			local row = self.data[i]
+			local y_true = row[self.target]
+			local y_pred = self:predecir(row)
+			local err = y_true - y_pred
+			err_sum = err_sum + err * err
+		end
+
+		return err_sum / n
+	end
+	function newRM:rmse() return math.sqrt(self:mse()) end
 
 	return newRM
 end

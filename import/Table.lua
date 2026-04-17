@@ -1,4 +1,4 @@
-local Convert, Table, seen, FIXER, _Settings = {}, {}, {totaljumps = 0}, {}, {}
+local Convert, ConvertStream, Table, --[[seen,]] FIXER, _Settings = {}, {}, {}, --[[{totaljumps = 0},]] {}, {}
 
 local tostring, tonumber, rawequal, rawset, type, typeof, unpack, pairs, ipairs =
 	  tostring, tonumber, rawequal, rawset, type, typeof or type, unpack or table.unpack, pairs, ipairs
@@ -88,7 +88,7 @@ local ReplaceKeymap = {
 	["\\"] = "\\"
 }
 
-_Settings.NOHIGHLIGHT           = false
+_Settings.NO_HIGHLIGHT           = false
 _Settings.TAB_SIZE              = 4
 _Settings.TAB_FORMAT            = string_rep(" ", _Settings.TAB_SIZE)
 _Settings.PAGE_LIMIT            = 0 -- change this if you have trouble with some circular definitions. . .
@@ -138,7 +138,7 @@ else
 	ReplaceKeymap["\n"] = "\n"
 end
 
-local DoTable, methods, TableMT
+local DoTable, DoTableStream, methods, TableMT
 
 smt(FIXER, {
 	__metatable = "locked",
@@ -194,24 +194,66 @@ end
 
 smt(ReplaceKeymap, {
 	["__index"] = function(self, index)
-		local st = {_Settings.NOHIGHLIGHT and "" or _Settings.STRING_SCAPE_COLOR}
+		local st = {_Settings.NO_HIGHLIGHT and "" or _Settings.STRING_SCAPE_COLOR}
 		for i = 1, string_len(index), 1 do
 			table_insert(st, string_format("\\%d", string_byte(index, i, i) or 0))
 		end
 
-		table_insert(st, _Settings.NOHIGHLIGHT and "" or _Settings.CLOSE_COLOR)
-		table_insert(st, _Settings.NOHIGHLIGHT and "" or _Settings.STRING_COLOR)
+		table_insert(st, _Settings.NO_HIGHLIGHT and "" or _Settings.CLOSE_COLOR)
+		table_insert(st, _Settings.NO_HIGHLIGHT and "" or _Settings.STRING_COLOR)
 		return table_concat(st)
 	end,
 	["__metatable"] = "locked"
 })
 
-Convert["function"] = function(val, _, _, _, nohighlight)
+local valid = {
+	["\195\161"] = true,
+	["\195\169"] = true,
+	["\195\173"] = true,
+	["\195\179"] = true,
+	["\195\186"] = true,
+	["\195\160"] = true,
+	["\195\168"] = true,
+	["\195\172"] = true,
+	["\195\178"] = true,
+	["\195\185"] = true,
+	["\195\164"] = true,
+	["\195\171"] = true,
+	["\195\175"] = true,
+	["\195\182"] = true,
+	["\195\188"] = true,
+	["\195\162"] = true,
+	["\195\170"] = true,
+	["\195\174"] = true,
+	["\195\180"] = true,
+	["\195\187"] = true,
+	["\195\129"] = true,
+	["\195\137"] = true,
+	["\195\141"] = true,
+	["\195\147"] = true,
+	["\195\154"] = true,
+	["\195\128"] = true,
+	["\195\136"] = true,
+	["\195\140"] = true,
+	["\195\146"] = true,
+	["\195\153"] = true,
+	["\195\132"] = true,
+	["\195\139"] = true,
+	["\195\143"] = true,
+	["\195\150"] = true,
+	["\195\156"] = true,
+	["\195\130"] = true,
+	["\195\138"] = true,
+	["\195\142"] = true,
+	["\195\148"] = true,
+	["\195\155"] = true
+}
+Convert["function"] = function(val, _, _, _, nohighlight, _, _)
 	local address = string_gsub(tostring(val), "function: ", "")
 	return string_format((nohighlight and "" or _Settings.FUNCTION_COLOR).."\"function at %s\""..(nohighlight and "" or _Settings.CLOSE_COLOR), address)
 end
 
-Convert["number"] = function(val, _, _, _, nohighlight)
+Convert["number"] = function(val, _, _, _, nohighlight, _, _)
 	if tostring(val) == "inf" then
 		return (rawget(math, "huge") and "math.huge --[[inf]]") or "infinite"
 	end
@@ -228,48 +270,6 @@ Convert["number"] = function(val, _, _, _, nohighlight)
 
 	return (nohighlight and "" or _Settings.NUMBER_COLOR)..snum..(nohighlight and "" or _Settings.CLOSE_COLOR)
 end
-local valid = {
-    ["\195\161"] = true,
-    ["\195\169"] = true,
-    ["\195\173"] = true,
-    ["\195\179"] = true,
-    ["\195\186"] = true,
-    ["\195\160"] = true,
-    ["\195\168"] = true,
-    ["\195\172"] = true,
-    ["\195\178"] = true,
-    ["\195\185"] = true,
-    ["\195\164"] = true,
-    ["\195\171"] = true,
-    ["\195\175"] = true,
-    ["\195\182"] = true,
-    ["\195\188"] = true,
-    ["\195\162"] = true,
-    ["\195\170"] = true,
-    ["\195\174"] = true,
-    ["\195\180"] = true,
-    ["\195\187"] = true,
-    ["\195\129"] = true,
-    ["\195\137"] = true,
-    ["\195\141"] = true,
-    ["\195\147"] = true,
-    ["\195\154"] = true,
-    ["\195\128"] = true,
-    ["\195\136"] = true,
-    ["\195\140"] = true,
-    ["\195\146"] = true,
-    ["\195\153"] = true,
-    ["\195\132"] = true,
-    ["\195\139"] = true,
-    ["\195\143"] = true,
-    ["\195\150"] = true,
-    ["\195\156"] = true,
-    ["\195\130"] = true,
-    ["\195\138"] = true,
-    ["\195\142"] = true,
-    ["\195\148"] = true,
-    ["\195\155"] = true
-}
 
 if _VERSION == "Luau" then
 	Convert["string"] = function(val, _, _, _, nohighlight)
@@ -282,7 +282,7 @@ if _VERSION == "Luau" then
 		return table_concat(result)
 	end
 else
-	Convert["string"] = function(val, seen, _, _, nohighlight)
+	Convert["string"] = function(val, _, _, _, nohighlight)
 		local result = { nohighlight and "" or _Settings.STRING_COLOR, "\"" }
 		local i = 1
 
@@ -341,7 +341,7 @@ local function doAddress(t)
 	return address
 end
 
-Convert["table"] = function(val, _, _, toppage)
+Convert["table"] = function(val, seen, _, toppage, nohighlight)
 	seen[val] = seen[val] or {
 		["page"] = toppage,
 		["value"] = val,
@@ -367,7 +367,7 @@ Convert["table"] = function(val, _, _, toppage)
 		if type(value) == "table" then
 			if seen[value] and seen[value].count >= _Settings.PAGE_LIMIT then
 				seen[value].page = page
-				local s = string_format(_Settings.CIRCULAR_COLOR.."{\"circular " .. (type(seen[value].value)) .. " (%s)? at ".. _Settings.OPERAND_VERSION .."\"}".._Settings.CLOSE_COLOR, seen[value].page or "N/A", doAddress(seen[value].value))
+				local s = string_format((nohighlight and "" or _Settings.CIRCULAR_COLOR).."{\"circular " .. (type(seen[value].value)) .. " (%s)? at ".. (nohighlight and "" or _Settings.OPERAND_VERSION) .."\"}"..(nohighlight and _Settings.CLOSE_COLOR or ""), seen[value].page or "N/A", doAddress(seen[value].value))
 				--seen.totaljumps = clamp(seen.totaljumps - 1, 1, math_huge)
 				return s
 			end
@@ -422,7 +422,8 @@ smt(Convert, {
 	end
 })
 
-DoTable = function(t)
+DoTable = function(t, _seen)
+	local seen = _seen or {}
 	local started = false
 	local str = ""
 	local tab = string_rep(_Settings.TAB_FORMAT, seen.totaljumps)
@@ -445,8 +446,8 @@ DoTable = function(t)
 			}
 		end
 		
-		local PAGE = Convert[type(page)](page, seen, seen.totaljumps, page, _Settings.NOHIGHLIGHT)
-		local VALUE = Convert[type(value)](value, seen, seen.totaljumps, page, _Settings.NOHIGHLIGHT)
+		local PAGE = Convert[type(page)](page, seen, seen.totaljumps, page, _Settings.NO_HIGHLIGHT)
+		local VALUE = Convert[type(value)](value, seen, seen.totaljumps, page, _Settings.NO_HIGHLIGHT)
 		
 		str = str .. string_format("%s[%s] = %s%s\n", tab, PAGE, VALUE, next(t, page) == nil and "" or ",")
 	end
@@ -470,7 +471,7 @@ DoTable = function(t)
 			PAGE = _pts(seen[t].page)
 			seen[t] = aux
 		else
-			PAGE = Convert[type(seen[t].page)](seen[t].page, seen, seen.totaljumps, seen[t].page, _Settings.NOHIGHLIGHT)
+			PAGE = Convert[type(seen[t].page)](seen[t].page, seen, seen.totaljumps, seen[t].page, _Settings.NO_HIGHLIGHT, DoTable)
 		end
 
 		local vmt = gmt(seen[t].value)
@@ -480,13 +481,94 @@ DoTable = function(t)
 			VALUE = _vts(seen[t].value)
 			seen[t] = aux
 		else
-			VALUE = Convert[type(seen[t].value)](seen[t].value, seen, seen.totaljumps, seen[t].page, _Settings.NOHIGHLIGHT)
+			VALUE = Convert[type(seen[t].value)](seen[t].value, seen, seen.totaljumps, seen[t].page, _Settings.NO_HIGHLIGHT, DoTable)
 		end
 
 		seen.totaljumps = clamp(seen.totaljumps - 1, 0, math_huge)
-		return string_format("{\n%s[%s] = %s\n%s}", string_rep(_Settings.NOHIGHLIGHT and "" or _Settings.TAB_FORMAT, seen.totaljumps-1), PAGE, VALUE, string_rep(_Settings.NOHIGHLIGHT and "" or _Settings.TAB_FORMAT, seen.totaljumps-1))
+		return string_format("{\n%s[%s] = %s\n%s}", string_rep(_Settings.TAB_FORMAT, seen.totaljumps-1), PAGE, VALUE, string_rep(_Settings.TAB_FORMAT, seen.totaljumps-1))
 	end
 	return "{}"
+end
+
+ConvertStream["number"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    if val == math.huge then
+        file:write("math.huge")
+        return
+    elseif val == -math.huge then
+        file:write("-math.huge")
+        return
+    end
+
+    file:write(string.format("%.14g", val))
+end
+
+ConvertStream["string"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    file:write(string.format("%q", val))
+end
+
+ConvertStream["boolean"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    file:write(tostring(val))
+end
+
+ConvertStream["nil"] = function(_, seen, depth, page, nohighlight, DoMethod, file)
+    file:write("nil")
+end
+
+ConvertStream["function"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    local addr = tostring(val):gsub("function: ", "")
+    file:write("\"function at " .. addr .. "\"")
+end
+
+ConvertStream["userdata"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    local mt = gmt(val)
+
+    if mt and rawget(mt, "__tostring") then
+        file:write(string.format("\"%s\"", tostring(val)))
+        return
+    end
+
+    local addr = tostring(val):gsub("userdata: ", "")
+    file:write("\"userdata at " .. addr .. "\"")
+end
+
+ConvertStream["thread"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    local addr = tostring(val):gsub("thread: ", "")
+    file:write("\"thread at " .. addr .. "\"")
+end
+
+ConvertStream["table"] = function(val, seen, depth, page, nohighlight, DoMethod, file)
+    if seen[val] then
+        file:write("{\"circular\"}")
+        return
+    end
+
+    seen[val] = true
+
+    file:write("{\n")
+
+    local indent = string.rep(_Settings.TAB_FORMAT, depth + 1)
+
+    for k, v in pairs(val) do
+        file:write(indent)
+        file:write("[")
+
+        ConvertStream[type(k)](
+            k, seen, depth + 1, k,
+            nohighlight, ConvertStream, file
+        )
+
+        file:write("] = ")
+
+        ConvertStream[type(v)](
+            v, seen, depth + 1, k,
+            nohighlight, ConvertStream, file
+        )
+
+        file:write(",\n")
+    end
+
+    file:write(string.rep(_Settings.TAB_FORMAT, depth))
+    file:write("}")
 end
 
 local function FN_TASK(self, idx)
@@ -495,6 +577,26 @@ end
 
 local ftypes = {}
 methods = {
+	stream = function(self, nohighlight, stdout)
+		local path = os.tmpname()
+		local location = stdout or path
+		local file = assert(io.open(location, "w"))
+
+		local seen = {totaljumps = 0}
+
+		ConvertStream[type(self)](
+			self,
+			seen,
+			0,
+			nil,
+			nohighlight == true,
+			ConvertStream,
+			file
+		)
+
+		file:close()
+		return assert(io.open(location, "r")), location
+	end,
 	look = function(self, value0)
 		return methods.foreach(self, function(index, value1)
 			if rawequal(value0, value1) then return index end
@@ -845,6 +947,7 @@ TableMT = {
 	__tostring = function(self)
 		local selfMT = gmt(self)
 		local __mt = rawget(selfMT, "__mt")
+		local seen = {totaljumps = 0}
 		if not __mt then
 			seen[self] = seen[self] or {
 				["value"] = self,
@@ -1014,13 +1117,16 @@ function Table.getmetatable(t)
 end
 
 function Table.ftostring(v, nohighlight, _seen)
-	local seen = _seen or seen
+	local seen = _seen or {totaljumps = 0}--seen
 	seen.totaljumps = seen.totaljumps + 1--clamp(seen.totaljumps + 1, 1, _Settings.PAGE_LIMIT+1)
-	local s = Convert[type(v)](v, seen, seen.totaljumps, nil, nohighlight or _Settings.NOHIGHLIGHT)
+	local oldNOHIGHLIGHT = _Settings.NO_HIGHLIGHT
+	_Settings.NO_HIGHLIGHT = nohighlight == true
+	local s = Convert[type(v)](v, seen, seen.totaljumps, nil)
 	for k, _ in pairs(seen) do
 		seen[k] = k == "totaljumps" and clamp(seen[k]-1, 0, math_huge) or nil
 	end
 
+	_Settings.NO_HIGHLIGHT = oldNOHIGHLIGHT
 	return s
 end
 Table.tostring = Table.ftostring

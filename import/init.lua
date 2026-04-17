@@ -130,7 +130,7 @@ local interactive = arg[0] == "--exec" and arg[1]
 
 if interactive then
 	local f = import("File").new("--exec", "w")
-	f:flush()
+	f:clear()
 	f:write(interactive)
 	f:save()
 end
